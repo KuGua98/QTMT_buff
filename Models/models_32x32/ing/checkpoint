@@ -1,0 +1,3 @@
+model_checkpoint_path: "model_res3_20000.dat"
+all_model_checkpoint_paths: "model_res3_10000.dat"
+all_model_checkpoint_paths: "model_res3_20000.dat"
