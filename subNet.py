@@ -18,7 +18,7 @@ def qp_half_mask(x, qp):
     x2 = x - x1
     # qp正规化
     qp = qp/51
-    qp = tf.expand_dims(qp,2)
+    qp = tf.expand_dims(qp, 2)
     qp = tf.expand_dims(qp, 2)
     # half mask
     h = x1*qp + x2

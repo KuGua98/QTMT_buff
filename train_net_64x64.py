@@ -19,7 +19,7 @@ MINI_BATCH_SIZE = 32
 NUM_CHANNELS = 1
 
 ITER_TIMES = 500000
-ITER_TIMES_PER_EVALUATE = 100   # 100次迭代评估一次准确率
+ITER_TIMES_PER_EVALUATE = 100  # 100次迭代评估一次准确率
 ITER_TIMES_PER_SAVE_ACCURACY = 1000  # 1000次迭代记录一次准确率
 ITER_TIMES_PER_SAVE_MODEL = 10000
 
@@ -94,11 +94,6 @@ for i in range(ITER_TIMES):
     # print("input time: %d , cal time: %d"%(time1, time2))
     # print(learning_rate, loss, accuracy)
 
-    # weight = sess.graph.get_tensor_by_name('w_subnet_nc_64x64_1:0')
-    # bia = sess.graph.get_tensor_by_name('b_subnet_nc_64x64_1:0')
-    # w = sess.run(weight)
-    # b = sess.run(bia)
-    # print(y)
 
     if step % ITER_TIMES_PER_EVALUATE == 0:
         accuracy_64x64_list = []
@@ -118,8 +113,8 @@ for i in range(ITER_TIMES):
 
         if step % ITER_TIMES_PER_SAVE_ACCURACY == 0:
             index = (step / ITER_TIMES_PER_SAVE_ACCURACY) - 1
-            accuracy_dataset[index][0] = accuracy
-            accuracy_dataset[index][1] = loss
+            accuracy_dataset[index,0] = accuracy
+            accuracy_dataset[index,1] = loss
             accuracy_file.flush()
 
     if step % ITER_TIMES_PER_SAVE_MODEL == 0:

@@ -46,8 +46,8 @@ def gen_train():
 
         yield (image, label, qp)
         index += 1
-        if index == size_dataset_all-1:
-            index = 0
+        # if index == size_dataset_all-1:
+        #     index = 0
 
 def gen_valid():
     # buf_sample = patch_Y + rdcost + qp + rdcost_min + partition_model
@@ -71,8 +71,8 @@ def gen_valid():
 
         yield (image, label, qp)
         index += 1
-        if index == size_dataset_all - 1:
-            index = 0
+        # if index == size_dataset_all - 1:
+        #     index = 0
 
 
 def get_train_dataset(cu_width, cu_height, label_length, images_length):
@@ -86,11 +86,11 @@ def get_train_dataset(cu_width, cu_height, label_length, images_length):
 
     data = tf.data.Dataset.from_generator(gen_train, (tf.float32, tf.float32, tf.float32), (tf.TensorShape([cu_width,cu_height,1]), tf.TensorShape([label_length]), tf.TensorShape([1])))
     data = data.shuffle(TRAINSET_READSIZE)
-    data = data.batch(MINI_BATCH_SIZE)
     data = data.repeat()
-    data = data.make_one_shot_iterator()
+    data = data.batch(MINI_BATCH_SIZE)
+    iterator = data.make_one_shot_iterator()
 
-    images_batch, label_batch, qp_batch = data.get_next()
+    images_batch, label_batch, qp_batch = iterator.get_next()
 
 
     return  images_batch, label_batch, qp_batch
@@ -118,10 +118,10 @@ def get_valid_dataset(cu_width, cu_height, label_length):
     # CU_NAME = str(cu_width) + 'x' + str(cu_height)
     data = tf.data.Dataset.from_generator(gen_valid, (tf.float32, tf.float32, tf.float32), (tf.TensorShape([cu_width, cu_height, 1]), tf.TensorShape([label_length]), tf.TensorShape([1])))
     data = data.shuffle(VALIDSET_READSIZE)
-    data = data.batch(MINI_BATCH_SIZE)
     data = data.repeat()
-    data = data.make_one_shot_iterator()
+    data = data.batch(MINI_BATCH_SIZE)
+    iterator = data.make_one_shot_iterator()
 
-    images_batch, label_batch, qp_batch = data.get_next()
+    images_batch, label_batch, qp_batch = iterator.get_next()
 
     return images_batch, label_batch, qp_batch
