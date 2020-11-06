@@ -35,7 +35,7 @@ NUM_CLASSES_OTHERS = 6
 # p_16x4  = [0.65,             0.23        0.12]
 
 
-def net_64x64(x, y, qp, global_step, learning_rate_init, decay_rate, decay_step):
+def net_64x64(x, y, qp,min_RDcost, RDcost, global_step, learning_rate_init, decay_rate, decay_step):
     p_64x64 = [0.25, 0.75]
     # 归一化
     x = tf.cast(x, tf.float32)
@@ -43,6 +43,9 @@ def net_64x64(x, y, qp, global_step, learning_rate_init, decay_rate, decay_step)
     x_image = tf.reshape(x, [-1, 64, 64, 1])
     y_image = tf.reshape(y, [-1, 2])
 
+    min_RDcost_image = tf.cast(min_RDcost, tf.float32)
+    RDcost_image = tf.reshape(RDcost, [-1, 2])
+    subtractor = tf.constant([1.0, 1.0])
     # index = tf.cast(y_image, dtype=tf.uint8)
     # index_onehot = tf.one_hot(indices=index, depth=2)
     # p_64x64 = tf.expand_dims(p_64x64, 0)
@@ -69,7 +72,8 @@ def net_64x64(x, y, qp, global_step, learning_rate_init, decay_rate, decay_step)
     # loss_64_ce = -tf.reduce_sum(tf.multiply(np.power(p_64x64, adjust_scalar_64).astype(np.float32), tf.multiply(y_image, tf.log(y_probabilty + 1e-12)))) / np.sum(np.power(p_64x64, adjust_scalar_64))
     # loss_64_rd = tf.reduce_sum(-tf.multiply(y_image, tf.log()))
     # total_loss_64x64 = loss_64_ce + positive_scalar*loss_64_rd
-    total_loss_64x64 = loss_64_ce
+    loss_64_rd = tf.reduce_sum(tf.multiply(y_probabilty, tf.div(RDcost_image,min_RDcost_image) - subtractor)) / BATCH_SIZE
+    total_loss_64x64 = loss_64_ce + loss_64_rd
 
     accuracy_64x64 = tf.reduce_sum(tf.multiply(y_image, y_one_hot)) / tf.reduce_sum(y_image)
     learning_rate_current = tf.train.exponential_decay(learning_rate_init, global_step, decay_step, decay_rate, staircase=True)

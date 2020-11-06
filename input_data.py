@@ -37,13 +37,17 @@ def gen_train():
         image = data_buff[:IMAGES_LENGTH]
         label = data_buff[IMAGES_LENGTH + 8]
         qp = data_buff[IMAGES_LENGTH + 6]
+        RDcost = data_buff[IMAGES_LENGTH: IMAGES_LENGTH+2]
+        min_RDcost = data_buff[IMAGES_LENGTH + 7]
 
         image = image.reshape([CU_WIDTH, CU_HEIGHT, 1])
         sess = tf.Session()
         label = tf.one_hot(indices=label, depth=LABEL_LENGTH).eval(session=sess)
         qp = qp.reshape([1])
+        min_RDcost = min_RDcost.reshape([1])
+        RDcost = RDcost.reshape([LABEL_LENGTH])
 
-        yield (image, label, qp)
+        yield (image, label, qp, min_RDcost, RDcost)
         index += 1
         if index == size_dataset_all:
             break
@@ -63,14 +67,18 @@ def gen_valid():
         image = data_buff[:IMAGES_LENGTH]
         label = data_buff[IMAGES_LENGTH + 8]
         qp = data_buff[IMAGES_LENGTH + 6]
+        RDcost = data_buff[IMAGES_LENGTH: IMAGES_LENGTH + 2]
+        min_RDcost = data_buff[IMAGES_LENGTH + 7]
 
         image = image.reshape([CU_WIDTH, CU_HEIGHT, 1])
         # label = tf.one_hot(indices=label, depth=LABEL_LENGTH)
         sess = tf.Session()
         label = tf.one_hot(indices=label, depth=LABEL_LENGTH).eval(session=sess)
         qp = qp.reshape([1])
+        min_RDcost = min_RDcost.reshape([1])
+        RDcost = RDcost.reshape([LABEL_LENGTH])
 
-        yield (image, label, qp)
+        yield (image, label, qp, min_RDcost, RDcost)
         index += 1
         if index == size_dataset_all:
             break
@@ -86,15 +94,15 @@ def get_train_dataset(cu_width, cu_height, label_length, images_length):
     LABEL_LENGTH = label_length
     IMAGES_LENGTH = images_length
 
-    data = tf.data.Dataset.from_generator(gen_train, (tf.float32, tf.float32, tf.float32), (tf.TensorShape([cu_width,cu_height,1]), tf.TensorShape([label_length]), tf.TensorShape([1])))
+    data = tf.data.Dataset.from_generator(gen_train, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32), (tf.TensorShape([cu_width, cu_height, 1]), tf.TensorShape([label_length]), tf.TensorShape([1]), tf.TensorShape([1]), tf.TensorShape([label_length])))
     data = data.shuffle(TRAINSET_READSIZE)
     data = data.repeat()
     data = data.batch(MINI_BATCH_SIZE)
     iterator = data.make_one_shot_iterator()
 
-    images_batch, label_batch, qp_batch = iterator.get_next()
+    images_batch, label_batch, qp_batch, min_RDcost_batch, RDcost_batch = iterator.get_next()
 
-    return  images_batch, label_batch, qp_batch
+    return images_batch, label_batch, qp_batch, min_RDcost_batch, RDcost_batch
 
 
     # data_buff = cu_dataset[:size_dataset_all]
@@ -117,12 +125,12 @@ def get_train_dataset(cu_width, cu_height, label_length, images_length):
 def get_valid_dataset(cu_width, cu_height, label_length):
 
     # CU_NAME = str(cu_width) + 'x' + str(cu_height)
-    data = tf.data.Dataset.from_generator(gen_valid, (tf.float32, tf.float32, tf.float32), (tf.TensorShape([cu_width, cu_height, 1]), tf.TensorShape([label_length]), tf.TensorShape([1])))
+    data = tf.data.Dataset.from_generator(gen_train, (tf.float32, tf.float32, tf.float32, tf.float32, tf.float32), (tf.TensorShape([cu_width, cu_height, 1]), tf.TensorShape([label_length]), tf.TensorShape([1]), tf.TensorShape([1]), tf.TensorShape([label_length])))
     data = data.shuffle(VALIDSET_READSIZE)
     data = data.repeat()
     data = data.batch(MINI_BATCH_SIZE)
     iterator = data.make_one_shot_iterator()
 
-    images_batch, label_batch, qp_batch = iterator.get_next()
+    images_batch, label_batch, qp_batch, min_RDcost_batch, RDcost_batch = iterator.get_next()
 
-    return images_batch, label_batch, qp_batch
+    return images_batch, label_batch, qp_batch, min_RDcost_batch, RDcost_batch
