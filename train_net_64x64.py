@@ -3,13 +3,12 @@ sys.path.append("..")
 import tensorflow as tf
 import net_cu as net
 import h5py
-import input_test as input_data
+import input_data as input_data
 from extract_data import get_details as gd
 import time
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
-
 
 LEARNING_RATE_INIT = 1e-4
 DECAY_RATE = 0.99
@@ -27,6 +26,7 @@ TIMES_PER_COUNT_ACCURACY = 10   # 20*32=640 准确率计算分母为640
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
+
 
 ######################     getfile: 64x64       ###########################
 # IMAGE_SIZE = [[64,64],[32,32],[16,16],[32,16],[8,8],[32,8],[16,8],[8,4],[32,4],[16,4]]

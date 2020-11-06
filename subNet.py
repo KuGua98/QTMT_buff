@@ -120,17 +120,15 @@ def sub_net_16(x_input, cu_width, cu_height, qp):
     x_half1 = qp_half_mask(x_input, qp)
 
     h_nc1 = non_overlap_conv(x_half1, cu_width/4, cu_height/4, 16, 16, CU_NAME, 1)
-
     h_nc2 = non_overlap_conv(h_nc1, 2, 2, 16, 32, CU_NAME, 2)
     h_nc3 = non_overlap_conv(h_nc2, 2, 2, 32, 64, CU_NAME, 3)
     h_half2 = qp_half_mask(h_nc3, qp)
     h_f1 = full_connect(h_half2, 64, 64, 2, CU_NAME, 1)
 
-    CU_NAME = str(cu_width) + 'x' + str(cu_height)
     if cu_width==16:
         h_f2 = full_connect(h_f1, 64, 6, 3, CU_NAME, 2)
     elif cu_width==32:
-        h_f2 = full_connect(h_f1, 64, 6, 3, CU_NAME, 2)
+        h_f2 = full_connect(h_f1, 64, 5, 3, CU_NAME, 2)
 
     return h_f2
 
@@ -138,14 +136,12 @@ def sub_net_16(x_input, cu_width, cu_height, qp):
 def sub_net_8(x_input, cu_width, cu_height, qp):
     CU_NAME = str(cu_width) + 'x' + str(cu_height)
     x_half1 = qp_half_mask(x_input, qp)
-    h_nc1 = non_overlap_conv(x_half1, cu_width/2, cu_height/2, 16, 16, CU_NAME, 1)
 
-    CU_NAME = str(cu_height)
+    h_nc1 = non_overlap_conv(x_half1, cu_width/2, cu_height/2, 16, 16, CU_NAME, 1)
     h_nc2 = non_overlap_conv(h_nc1, 2, 2, 16, 32, CU_NAME, 2)
     h_half2 = qp_half_mask(h_nc2, qp)
     h_f1 = full_connect(h_half2, 32, 16, 2, CU_NAME, 1)
 
-    CU_NAME = str(cu_width) + 'x' + str(cu_height)
     if cu_width==8:
         h_f2 = full_connect(h_f1, 16, 3, 3, CU_NAME, 2)
     elif cu_width==16:
@@ -159,19 +155,17 @@ def sub_net_8(x_input, cu_width, cu_height, qp):
 def sub_net_4(x_input, cu_width, cu_height, qp):
     CU_NAME = str(cu_width) + 'x' + str(cu_height)
     x_half1 = qp_half_mask(x_input, qp)
-    h_nc1 = non_overlap_conv(x_half1, cu_width/2, cu_width/2, 16, 16, CU_NAME, 1)
 
-    CU_NAME = str(cu_height)
+    h_nc1 = non_overlap_conv(x_half1, cu_width/2, cu_width/2, 16, 16, CU_NAME, 1)
     h_nc2 = non_overlap_conv(h_nc1, 2, 2, 16, 32, CU_NAME, 2)
     h_half2 = qp_half_mask(h_nc2, qp)
     h_f1 = full_connect(h_half2, 32, 16, 2, CU_NAME, 1)
 
-    CU_NAME = str(cu_width) + 'x' + str(cu_height)
     if cu_width==8:
         h_f2 = full_connect(h_f1, 16, 2, 3, CU_NAME, 2)
     elif cu_width==16:
         h_f2 = full_connect(h_f1, 16, 3, 3, CU_NAME, 2)
     elif cu_width == 32:
-        h_f2 = full_connect(h_f1, 16, 6, 3, CU_NAME, 2)
+        h_f2 = full_connect(h_f1, 16, 3, 3, CU_NAME, 2)
 
     return h_f2

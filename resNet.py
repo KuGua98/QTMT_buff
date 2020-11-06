@@ -35,10 +35,7 @@ def identity_block(X_input, kernel_size, in_filter, out_filters, k):
 
         # 卷积块中的参数命名
         weights_name_con1 = 'w_res' + str(k) + '_1'
-        # biases_name_con1 = 'b_res' + str(k) + '_1'
         weights_name_con2 = 'w_res' + str(k) + '_2'
-        # biases_name_con2 = 'b_res' + str(k) + '_2'
-        # biases_name_fin = 'b_res' + str(k) + '_3'
 
         f1 = out_filters    # 二卷积
         f2 = out_filters
@@ -70,6 +67,34 @@ def identity_block(X_input, kernel_size, in_filter, out_filters, k):
         return add_result
 
 
+def identity_block_reuse(X_input, kernel_size, in_filter, out_filters, k):
+
+    block_name = 'res_unit' + str(k)
+    weights_name_con1 = 'w_res' + str(k) + '_1'
+    weights_name_con2 = 'w_res' + str(k) + '_2'
+
+    f1 = out_filters  # 二卷积
+    f2 = out_filters
+    with tf.variable_scope(block_name):
+        X_shortcut = X_input
+
+        # first
+        W_conv1 = tf.get_variable(weights_name_con1, [kernel_size, kernel_size, in_filter, f1],initializer=initializer_Res_weight)
+        X1 = tf.nn.conv2d(X_input, W_conv1, strides=[1, 1, 1, 1], padding='SAME')
+        X1 = tf.layers.batch_normalization(X1, training=True)
+        X1 = activate(X1, acti_mode)
+
+        # second
+        W_conv2 = tf.get_variable(weights_name_con2, [kernel_size, kernel_size, f1, f2],initializer=initializer_Res_weight)
+        X2 = tf.nn.conv2d(X1, W_conv2, strides=[1, 1, 1, 1], padding='SAME')
+        X2 = tf.layers.batch_normalization(X2, training=True)
+
+        # final step
+        add = tf.add(X2, X_shortcut)
+        add_result = activate(add, acti_mode)
+
+    return add_result
+
 # 训练和预测时的条件卷积不一样，需要分开写
 # def cond_conv_64(x_input, cu_size):
     # k = math.log(256/cu_size, 2)
@@ -87,11 +112,23 @@ def condc_lumin_32(x_input):
     return h
 
 def condc_lumin_16(x_input):
-    h = identity_block(x_input, 3, 16, 16, 4)
+    cu_width = x_input.shape[1].value
+    cu_height = x_input.shape[2].value
+    # h = identity_block(x_input, 3, 16, 16, 4)
+    if cu_width == cu_height:
+        h = identity_block(x_input, 3, 16, 16, 4)
+    else:
+        h = identity_block_reuse(x_input, 3, 16, 16, 4)
     return h
 
 def condc_lumin_8(x_input):
-    h = identity_block(x_input, 3, 16, 16, 5)
+    cu_width = x_input.shape[1].value
+    cu_height = x_input.shape[2].value
+    # h = identity_block(x_input, 3, 16, 16, 5)
+    if cu_width == cu_height:
+        h = identity_block(x_input, 3, 16, 16, 5)
+    else:
+        h = identity_block_reuse(x_input, 3, 16, 16, 5)
     return h
 
 def condc_lumin_4(x_input):
