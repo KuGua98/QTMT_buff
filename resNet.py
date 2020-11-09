@@ -132,5 +132,12 @@ def condc_lumin_8(x_input):
     return h
 
 def condc_lumin_4(x_input):
-    h = identity_block(x_input, 3, 16, 16, 6)
+    cu_width = x_input.shape[1].value
+    cu_height = x_input.shape[2].value
+    # h = identity_block(x_input, 3, 16, 16, 5)
+    if cu_width ==2* cu_height:
+        h = identity_block(x_input, 3, 16, 16, 6)
+    else:
+        h = identity_block_reuse(x_input, 3, 16, 16, 6)
+    # h = identity_block(x_input, 3, 16, 16, 6)
     return h

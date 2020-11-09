@@ -2,6 +2,7 @@ import sys
 sys.path.append("..")
 import tensorflow as tf
 import h5py
+import numpy as np
 from extract_data import get_details as gd
 import data_info as di
 import os
@@ -22,7 +23,7 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 
 # 或者直接按固定的比例分配。以下代码会占用所有可使用GPU的40%显存。
-config.gpu_options.per_process_gpu_memory_fraction = 0.4
+# config.gpu_options.per_process_gpu_memory_fraction = 0.4
 
 def gen_train():
     # buf_sample = patch_Y + rdcost + qp + rdcost_min + partition_model
@@ -33,26 +34,46 @@ def gen_train():
 
     index=0
     while True:
+        if index == size_dataset_all-1:
+            break
         data_buff = cu_dataset[index]
         image = data_buff[:IMAGES_LENGTH]
         label = data_buff[IMAGES_LENGTH + 8]
         qp = data_buff[IMAGES_LENGTH + 6]
-        RDcost = data_buff[IMAGES_LENGTH: IMAGES_LENGTH+2]
+        RDcost = data_buff[IMAGES_LENGTH: IMAGES_LENGTH+6]
         min_RDcost = data_buff[IMAGES_LENGTH + 7]
+
+        if CU_NAME == '64x64':
+            if RDcost[0] == 0 or RDcost[1] == 0:
+                index += 1
+                continue
+            RDcost_save = np.array([RDcost[0], RDcost[1]])
+            assert label <= 1
+
+        elif CU_NAME == '32x32':
+            if RDcost[0] == 0 or RDcost[1] == 0 or RDcost[2] == 0 or RDcost[3] == 0 or RDcost[4] == 0 or RDcost[5] == 0:
+                index += 1
+                continue
+            RDcost_save = np.array([RDcost[0], RDcost[1], RDcost[2],RDcost[3], RDcost[4], RDcost[5]])
+            assert label <= 5
+
+        elif CU_NAME == '16x16':
+            if RDcost[0] == 0 or RDcost[1] == 0 or RDcost[2] == 0 or RDcost[3] == 0 or RDcost[4] == 0 or RDcost[5] == 0:
+                index += 1
+                continue
+            RDcost_save = np.array([RDcost[0], RDcost[1], RDcost[2],RDcost[3], RDcost[4], RDcost[5]])
+            assert label <= 5
 
         image = image.reshape([CU_WIDTH, CU_HEIGHT, 1])
         sess = tf.Session()
         label = tf.one_hot(indices=label, depth=LABEL_LENGTH).eval(session=sess)
         qp = qp.reshape([1])
         min_RDcost = min_RDcost.reshape([1])
-        RDcost = RDcost.reshape([LABEL_LENGTH])
+        RDcost_save = RDcost_save.reshape([LABEL_LENGTH])
 
-        yield (image, label, qp, min_RDcost, RDcost)
+        yield (image, label, qp, min_RDcost, RDcost_save)
         index += 1
-        if index == size_dataset_all:
-            break
-        # if index == size_dataset_all-1:
-        #     index = 0
+
 
 def gen_valid():
     # buf_sample = patch_Y + rdcost + qp + rdcost_min + partition_model
@@ -63,27 +84,45 @@ def gen_valid():
 
     index = 0
     while True:
+        if index == size_dataset_all-1:
+            break
         data_buff = cu_dataset[index]
         image = data_buff[:IMAGES_LENGTH]
         label = data_buff[IMAGES_LENGTH + 8]
         qp = data_buff[IMAGES_LENGTH + 6]
-        RDcost = data_buff[IMAGES_LENGTH: IMAGES_LENGTH + 2]
+        RDcost = data_buff[IMAGES_LENGTH: IMAGES_LENGTH + 6]
         min_RDcost = data_buff[IMAGES_LENGTH + 7]
 
+        if CU_NAME == '64x64':
+            if RDcost[0] == 0 or RDcost[1] == 0:
+                index += 1
+                continue
+            RDcost_save = np.array([RDcost[0], RDcost[1]])
+            assert label <= 1
+
+        elif CU_NAME == '32x32':
+            if RDcost[0] == 0 or RDcost[1] == 0 or RDcost[2] == 0 or RDcost[3] == 0 or RDcost[4] == 0 or RDcost[5] == 0:
+                index += 1
+                continue
+            RDcost_save = np.array([RDcost[0], RDcost[1], RDcost[2],RDcost[3], RDcost[4], RDcost[5]])
+            assert label <= 5
+
+        elif CU_NAME == '16x16':
+            if RDcost[0] == 0 or RDcost[1] == 0 or RDcost[2] == 0 or RDcost[3] == 0 or RDcost[4] == 0 or RDcost[5] == 0:
+                index += 1
+                continue
+            RDcost_save = np.array([RDcost[0], RDcost[1], RDcost[2],RDcost[3], RDcost[4], RDcost[5]])
+            assert label <= 5
+
         image = image.reshape([CU_WIDTH, CU_HEIGHT, 1])
-        # label = tf.one_hot(indices=label, depth=LABEL_LENGTH)
         sess = tf.Session()
         label = tf.one_hot(indices=label, depth=LABEL_LENGTH).eval(session=sess)
         qp = qp.reshape([1])
         min_RDcost = min_RDcost.reshape([1])
-        RDcost = RDcost.reshape([LABEL_LENGTH])
+        RDcost_save = RDcost_save.reshape([LABEL_LENGTH])
 
-        yield (image, label, qp, min_RDcost, RDcost)
+        yield (image, label, qp, min_RDcost, RDcost_save)
         index += 1
-        if index == size_dataset_all:
-            break
-        # if index == size_dataset_all - 1:
-        #     index = 0
 
 
 def get_train_dataset(cu_width, cu_height, label_length, images_length):

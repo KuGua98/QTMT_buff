@@ -26,6 +26,8 @@ def gen_train():
 
     index=0
     while True:
+        if index == size_dataset_all-1:
+            break
         data_buff = cu_dataset[index]
         image = data_buff[:IMAGES_LENGTH]
         label = data_buff[IMAGES_LENGTH + 8]
@@ -34,64 +36,57 @@ def gen_train():
         min_RDcost = data_buff[IMAGES_LENGTH + 7]
 
         if CU_NAME == '32x16':
-
             if RDcost[0] == 0 or RDcost[2] == 0 or RDcost[3] == 0 or RDcost[4] == 0 or RDcost[5] == 0:
                 index += 1
                 continue
             RDcost_save = np.array([RDcost[0], RDcost[2], RDcost[3], RDcost[4], RDcost[5]])
-
             assert label != 1
             if label > 1:
                 label -= 1
-        elif CU_NAME == '8x8':
 
+        elif CU_NAME == '8x8':
             if RDcost[0] == 0 or RDcost[2] == 0 or RDcost[3] == 0:
                 index += 1
                 continue
             RDcost_save = np.array([RDcost[0], RDcost[2], RDcost[3]])
-
             assert label == 0 or label == 2 or label == 3
             if label > 1:
                 label -= 1
-        elif CU_NAME == '16x8':
 
+        elif CU_NAME == '16x8':
             if RDcost[0] == 0 or RDcost[2] == 0 or RDcost[3] == 0 or RDcost[4] == 0:
                 index += 1
                 continue
             RDcost_save = np.array([RDcost[0], RDcost[2], RDcost[3], RDcost[4]])
-
             assert label != 1 and label != 5
             if label > 1:
                 label -= 1
-        elif CU_NAME == '32x8':
 
+        elif CU_NAME == '32x8':
             if RDcost[0] == 0 or RDcost[2] == 0 or RDcost[3] == 0 or RDcost[5] == 0:
                 index += 1
                 continue
             RDcost_save = np.array([RDcost[0], RDcost[2], RDcost[3], RDcost[5]])
-
             assert label != 1 and label != 4
             if label == 2 or label == 3:
                 label -= 1
             elif label == 5:
                 label -= 2
-        elif CU_NAME == '8X4':
 
+        elif CU_NAME == '8x4':
             if RDcost[0] == 0 or RDcost[3] == 0:
                 index += 1
                 continue
             RDcost_save = np.array([RDcost[0], RDcost[3]])
-
             assert label == 0 or label == 3
             if label == 3:
                 label -= 2
-        elif CU_NAME == '16X4' or CU_NAME == '32X4':
 
+        elif CU_NAME == '16x4' or CU_NAME == '32x4':
             if RDcost[0] == 0 or RDcost[3] == 0 or RDcost[5] == 0:
                 index += 1
                 continue
             RDcost_save = np.array([RDcost[0], RDcost[3], RDcost[5]])
-
             assert label == 0 or label == 3 or label == 5
             if label == 3:
                 label -= 2
@@ -107,8 +102,6 @@ def gen_train():
 
         yield (image, label, qp, min_RDcost, RDcost_save)
         index += 1
-        if index == size_dataset_all:
-            break
 
 
 def gen_valid():
@@ -120,6 +113,8 @@ def gen_valid():
 
     index = 0
     while True:
+        if index == size_dataset_all-1:
+            break
         data_buff = cu_dataset[index]
         image = data_buff[:IMAGES_LENGTH]
         label = data_buff[IMAGES_LENGTH + 8]
@@ -142,7 +137,7 @@ def gen_valid():
             if RDcost[0] == 0 or RDcost[2] == 0 or RDcost[3] == 0:
                 index += 1
                 continue
-            RDcost_save = np.array([RDcost[0],RDcost[2],RDcost[3]])
+            RDcost_save = np.array([RDcost[0],RDcost[2], RDcost[3]])
 
             assert label == 0 or label == 2 or label == 3
             if label > 1:
@@ -202,8 +197,6 @@ def gen_valid():
 
         yield (image, label, qp, min_RDcost, RDcost_save)
         index += 1
-        if index == size_dataset_all:
-            break
 
 
 def get_train_dataset(cu_width, cu_height, label_length, images_length):

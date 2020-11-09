@@ -104,7 +104,7 @@ for i in range(ITER_TIMES):
         j = 0
         for j in range(TIMES_PER_COUNT_ACCURACY):
 
-            images_input, lable_input, qp_input, min_RDcost_input, RDcost_input =  sess.run([images_batch_train, label_batch_train, qp_batch_train, min_RDcost_batch_train, RDcost_batch_train])
+            images_input, lable_input, qp_input, min_RDcost_input, RDcost_input =  sess.run([images_batch_valid, label_batch_valid, qp_batch_valid, min_RDcost_batch_valid, RDcost_batch_valid])
             # 验证时不更新网络参数
             loss, accuracy = sess.run([total_loss_64x64, accuracy_64x64],feed_dict={x: images_input, y: lable_input, qp: qp_input,min_RDcost: min_RDcost_input,RDcost: RDcost_input, global_step: feed_step})
             loss_64x64_list.append(loss)

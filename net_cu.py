@@ -11,7 +11,7 @@ DEFAULT_THR_LIST = [[0.75, 0.55, 0.55, 0.55, 0.6],
                     [0.3,  0.2,  0.2,  0.15, 0.15]]
 
 adjust_scalar = -0.3      # α=0.3
-positive_scalar = 0.5    # β=0.5
+positive_scalar = 1    # β=0.5
 
 BATCH_SIZE = 32
 
@@ -35,14 +35,14 @@ NUM_CLASSES_OTHERS = 6
 # p_16x4  = [0.65,             0.23        0.12]
 
 
-def net_64x64(x, y, qp,min_RDcost, RDcost, global_step, learning_rate_init, decay_rate, decay_step):
+def net_64x64(x, y, qp, min_RDcost, RDcost, global_step, learning_rate_init, decay_rate, decay_step):
     p_64x64 = [0.25, 0.75]
     # 归一化
     x = tf.cast(x, tf.float32)
     x = tf.scalar_mul(1.0 / 255.0, x)
+
     x_image = tf.reshape(x, [-1, 64, 64, 1])
     y_image = tf.reshape(y, [-1, 2])
-
     min_RDcost_image = tf.cast(min_RDcost, tf.float32)
     RDcost_image = tf.reshape(RDcost, [-1, 2])
     subtractor = tf.constant([1.0, 1.0])
@@ -92,12 +92,15 @@ def net_64x64(x, y, qp,min_RDcost, RDcost, global_step, learning_rate_init, deca
     #        learning_rate_current, train_step, accuracy_64x64_list, opt_vars_all
 
 
-def net_32x32(x, y, qp, global_step, learning_rate_init, decay_rate, decay_step):
+def net_32x32(x, y, qp, min_RDcost, RDcost, global_step, learning_rate_init, decay_rate, decay_step):
     p_32x32 = [0.22, 0.21, 0.24, 0.19, 0.08, 0.06]
     # 归一化
     x = tf.scalar_mul(1.0 / 255.0, x)
     x_image = tf.reshape(x, [-1, 32, 32, 1])
     y_image = tf.reshape(y, [-1, 6])
+    min_RDcost_image = tf.cast(min_RDcost, tf.float32)
+    RDcost_image = tf.reshape(RDcost, [-1, 6])
+    subtractor = tf.constant([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
 
     p_32x32 = np.expand_dims(p_32x32, 0).repeat(BATCH_SIZE, axis=0).astype(np.float32)
     p = tf.multiply(p_32x32, y_image)
@@ -111,7 +114,8 @@ def net_32x32(x, y, qp, global_step, learning_rate_init, decay_rate, decay_step)
     y_one_hot = tf.one_hot(indices=y_predict, depth=6)  # 转换为one—hot vector
 
     loss_32_ce = -tf.reduce_sum(tf.multiply(np.power(p, adjust_scalar),tf.reduce_sum(tf.multiply(y_image, tf.log(y_probabilty + 1e-12)),axis=1))) / tf.reduce_sum(np.power(p, adjust_scalar))
-    total_loss_32x32 = loss_32_ce
+    loss_32_rd = tf.reduce_sum(tf.multiply(y_probabilty, tf.div(RDcost_image,min_RDcost_image) - subtractor)) / BATCH_SIZE
+    total_loss_32x32 = loss_32_ce + loss_32_rd
 
     accuracy_32x32 = tf.reduce_sum(tf.multiply(y_image, y_one_hot)) / tf.reduce_sum(y_image)
     learning_rate_current = tf.train.exponential_decay(learning_rate_init, global_step, decay_step, decay_rate,staircase=True)
@@ -124,22 +128,29 @@ def net_32x32(x, y, qp, global_step, learning_rate_init, decay_rate, decay_step)
 
 
 
-def net_16x16_32x16(x, y, qp, global_step, learning_rate_init, decay_rate, decay_step):
+def net_16x16_32x16(x, y, qp, min_RDcost, RDcost, global_step, learning_rate_init, decay_rate, decay_step):
     p_16x16 = [0.33, 0.07, 0.24, 0.21, 0.08, 0.07]
     p_32x16 = [0.45,       0.20, 0.22, 0.04, 0.09]
     # 归一化
     CU_WIDTH = int(x.shape[1])
     CU_HEIGHT = int(x.shape[2])
     x = tf.scalar_mul(1.0 / 255.0, x)
+
     if CU_WIDTH==16:
         x_image = tf.reshape(x, [-1, 16, 16, 1])
         y_image = tf.reshape(y, [-1, 6])
+        min_RDcost_image = tf.cast(min_RDcost, tf.float32)
+        RDcost_image = tf.reshape(RDcost, [-1, 6])
+        subtractor = tf.constant([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         p_16x16 = np.expand_dims(p_16x16, 0).repeat(BATCH_SIZE, axis=0).astype(np.float32)
         p = tf.multiply(p_16x16, y_image)
         p = tf.reduce_sum(p, axis=1)
     elif CU_WIDTH==32:
         x_image = tf.reshape(x, [-1, 32, 16, 1])
         y_image = tf.reshape(y, [-1, 5])
+        min_RDcost_image = tf.cast(min_RDcost, tf.float32)
+        RDcost_image = tf.reshape(RDcost, [-1, 5])
+        subtractor = tf.constant([1.0, 1.0, 1.0, 1.0, 1.0])
         p_32x16 = np.expand_dims(p_32x16, 0).repeat(BATCH_SIZE, axis=0).astype(np.float32)
         p = tf.multiply(p_32x16, y_image)
         p = tf.reduce_sum(p, axis=1)
@@ -153,7 +164,8 @@ def net_16x16_32x16(x, y, qp, global_step, learning_rate_init, decay_rate, decay
         y_one_hot = tf.one_hot(indices=y_predict, depth=6)  # 转换为one—hot vector
     #   loss_32_ce = -tf.reduce_sum(tf.multiply(np.power(p, adjust_scalar),tf.reduce_sum(tf.multiply(y_image, tf.log(y_probabilty + 1e-12)),axis=1))) / tf.reduce_sum(np.power(p, adjust_scalar))
         loss_16x16_ce = -tf.reduce_sum(tf.multiply(np.power(p, adjust_scalar),tf.reduce_sum(tf.multiply(y_image, tf.log(y_probabilty + 1e-12)),axis=1))) / tf.reduce_sum(np.power(p, adjust_scalar))
-        total_loss_16x16 = loss_16x16_ce
+        loss_16x16_rd = tf.reduce_sum(tf.multiply(y_probabilty, tf.div(RDcost_image, min_RDcost_image) - subtractor)) / BATCH_SIZE
+        total_loss_16x16 = loss_16x16_ce + loss_16x16_rd
         accuracy_16x16 = tf.reduce_sum(tf.multiply(y_image, y_one_hot)) / tf.reduce_sum(y_image)
         learning_rate_current = tf.train.exponential_decay(learning_rate_init, global_step, decay_step, decay_rate, staircase=True)
         train_step = tf.train.AdamOptimizer(learning_rate_current).minimize(total_loss_16x16)
@@ -165,7 +177,8 @@ def net_16x16_32x16(x, y, qp, global_step, learning_rate_init, decay_rate, decay
     elif CU_WIDTH == 32:
         y_one_hot = tf.one_hot(indices=y_predict, depth=5)  # 转换为one—hot vector
         loss_32x16_ce = -tf.reduce_sum(tf.multiply(np.power(p, adjust_scalar), tf.reduce_sum(tf.multiply(y_image, tf.log(y_probabilty + 1e-12)),axis=1))) / tf.reduce_sum(np.power(p, adjust_scalar))
-        total_loss_32x16 = loss_32x16_ce
+        loss_32x16_rd = tf.reduce_sum(tf.multiply(y_probabilty, tf.div(RDcost_image, min_RDcost_image) - subtractor)) / BATCH_SIZE
+        total_loss_32x16 = loss_32x16_ce + loss_32x16_rd
         accuracy_32x16 = tf.reduce_sum(tf.multiply(y_image, y_one_hot)) / tf.reduce_sum(y_image)
         learning_rate_current = tf.train.exponential_decay(learning_rate_init, global_step, decay_step, decay_rate,staircase=True)
         train_step = tf.train.AdamOptimizer(learning_rate_current).minimize(total_loss_32x16)
@@ -175,7 +188,7 @@ def net_16x16_32x16(x, y, qp, global_step, learning_rate_init, decay_rate, decay
         return y_probabilty, y_predict, y_one_hot, total_loss_32x16, accuracy_32x16, learning_rate_current, train_step, opt_vars_all, opt_vars_res4
 
 
-def net_8x8_16x8_32x8(x, y, qp, global_step, learning_rate_init, decay_rate, decay_step):
+def net_8x8_16x8_32x8(x, y, qp, min_RDcost, RDcost, global_step, learning_rate_init, decay_rate, decay_step):
     p_8x8   = [0.65,       0.20, 0.15]
     p_32x8  = [0.48,       0.12, 0.25,       0.15]
     p_16x8  = [0.60,       0.13, 0.18,       0.09]
@@ -186,18 +199,27 @@ def net_8x8_16x8_32x8(x, y, qp, global_step, learning_rate_init, decay_rate, dec
     if CU_WIDTH==8:
         x_image = tf.reshape(x, [-1, 8, 8, 1])
         y_image = tf.reshape(y, [-1, 3])
+        min_RDcost_image = tf.cast(min_RDcost, tf.float32)
+        RDcost_image = tf.reshape(RDcost, [-1, 3])
+        subtractor = tf.constant([1.0, 1.0, 1.0])
         p_8x8 = np.expand_dims(p_8x8, 0).repeat(BATCH_SIZE, axis=0).astype(np.float32)
         p = tf.multiply(p_8x8, y_image)
         p = tf.reduce_sum(p, axis=1)
     elif CU_WIDTH==16:
         x_image = tf.reshape(x, [-1, 16, 8, 1])
         y_image = tf.reshape(y, [-1, 4])
+        min_RDcost_image = tf.cast(min_RDcost, tf.float32)
+        RDcost_image = tf.reshape(RDcost, [-1, 4])
+        subtractor = tf.constant([1.0, 1.0, 1.0, 1.0])
         p_16x8 = np.expand_dims(p_16x8, 0).repeat(BATCH_SIZE, axis=0).astype(np.float32)
         p = tf.multiply(p_16x8, y_image)
         p = tf.reduce_sum(p, axis=1)
     elif CU_WIDTH == 32:
         x_image = tf.reshape(x, [-1, 32, 8, 1])
         y_image = tf.reshape(y, [-1, 4])
+        min_RDcost_image = tf.cast(min_RDcost, tf.float32)
+        RDcost_image = tf.reshape(RDcost, [-1, 4])
+        subtractor = tf.constant([1.0, 1.0, 1.0, 1.0])
         p_32x8 = np.expand_dims(p_32x8, 0).repeat(BATCH_SIZE, axis=0).astype(np.float32)
         p = tf.multiply(p_32x8, y_image)
         p = tf.reduce_sum(p, axis=1)
@@ -210,7 +232,8 @@ def net_8x8_16x8_32x8(x, y, qp, global_step, learning_rate_init, decay_rate, dec
     if CU_WIDTH == 8:
         y_one_hot = tf.one_hot(indices=y_predict, depth=3)  # 转换为one—hot vector
         loss_8x8_ce = -tf.reduce_sum(tf.multiply(np.power(p, adjust_scalar), tf.reduce_sum(tf.multiply(y_image, tf.log(y_probabilty + 1e-12)),axis=1))) / tf.reduce_sum(np.power(p, adjust_scalar))
-        total_loss_8x8 = loss_8x8_ce
+        loss_8x8_rd = tf.reduce_sum(tf.multiply(y_probabilty, tf.div(RDcost_image, min_RDcost_image) - subtractor)) / BATCH_SIZE
+        total_loss_8x8 = loss_8x8_ce + loss_8x8_rd
         accuracy_8x8 = tf.reduce_sum(tf.multiply(y_image, y_one_hot)) / tf.reduce_sum(y_image)
         learning_rate_current = tf.train.exponential_decay(learning_rate_init, global_step, decay_step, decay_rate,staircase=True)
         train_step = tf.train.AdamOptimizer(learning_rate_current).minimize(total_loss_8x8)
@@ -222,7 +245,8 @@ def net_8x8_16x8_32x8(x, y, qp, global_step, learning_rate_init, decay_rate, dec
     elif CU_WIDTH == 16:
         y_one_hot = tf.one_hot(indices=y_predict, depth=4)  # 转换为one—hot vector
         loss_16x8_ce = -tf.reduce_sum(tf.multiply(np.power(p, adjust_scalar), tf.reduce_sum(tf.multiply(y_image, tf.log(y_probabilty + 1e-12)),axis=1))) / tf.reduce_sum(np.power(p, adjust_scalar))
-        total_loss_16x8 = loss_16x8_ce
+        loss_16x8_rd = tf.reduce_sum(tf.multiply(y_probabilty, tf.div(RDcost_image, min_RDcost_image) - subtractor)) / BATCH_SIZE
+        total_loss_16x8 = loss_16x8_ce + loss_16x8_rd
         accuracy_16x8 = tf.reduce_sum(tf.multiply(y_image, y_one_hot)) / tf.reduce_sum(y_image)
         learning_rate_current = tf.train.exponential_decay(learning_rate_init, global_step, decay_step, decay_rate,staircase=True)
         train_step = tf.train.AdamOptimizer(learning_rate_current).minimize(total_loss_16x8)
@@ -234,7 +258,8 @@ def net_8x8_16x8_32x8(x, y, qp, global_step, learning_rate_init, decay_rate, dec
     elif CU_WIDTH == 32:
         y_one_hot = tf.one_hot(indices=y_predict, depth=4)  # 转换为one—hot vector
         loss_32x8_ce = -tf.reduce_sum(tf.multiply(np.power(p, adjust_scalar), tf.reduce_sum(tf.multiply(y_image, tf.log(y_probabilty + 1e-12)),axis=1))) / tf.reduce_sum(np.power(p, adjust_scalar))
-        total_loss_32x8 = loss_32x8_ce
+        loss_32x8_rd = tf.reduce_sum(tf.multiply(y_probabilty, tf.div(RDcost_image, min_RDcost_image) - subtractor)) / BATCH_SIZE
+        total_loss_32x8 = loss_32x8_ce + loss_32x8_rd
         accuracy_32x8 = tf.reduce_sum(tf.multiply(y_image, y_one_hot)) / tf.reduce_sum(y_image)
         learning_rate_current = tf.train.exponential_decay(learning_rate_init, global_step, decay_step, decay_rate,staircase=True)
         train_step = tf.train.AdamOptimizer(learning_rate_current).minimize(total_loss_32x8)
@@ -244,7 +269,7 @@ def net_8x8_16x8_32x8(x, y, qp, global_step, learning_rate_init, decay_rate, dec
         return y_probabilty, y_predict, y_one_hot, total_loss_32x8, accuracy_32x8, learning_rate_current, train_step, opt_vars_all, opt_vars_res5
 
 
-def net_8x4_16x4_32x4(x, y, qp, global_step, learning_rate_init, decay_rate, decay_step):
+def net_8x4_16x4_32x4(x, y, qp, min_RDcost, RDcost, global_step, learning_rate_init, decay_rate, decay_step):
     p_8x4   = [0.70,             0.30]
     p_32x4  = [0.70,             0.18,       0.12]
     p_16x4  = [0.65,             0.23,        0.12]
@@ -254,19 +279,28 @@ def net_8x4_16x4_32x4(x, y, qp, global_step, learning_rate_init, decay_rate, dec
     x = tf.scalar_mul(1.0 / 255.0, x)
     if CU_WIDTH==8:
         x_image = tf.reshape(x, [-1, 8, 4, 1])
-        y_image = tf.reshape(y, [-1, 6])
+        y_image = tf.reshape(y, [-1, 2])
+        min_RDcost_image = tf.cast(min_RDcost, tf.float32)
+        RDcost_image = tf.reshape(RDcost, [-1, 2])
+        subtractor = tf.constant([1.0, 1.0])
         p_8x4 = np.expand_dims(p_8x4, 0).repeat(BATCH_SIZE, axis=0).astype(np.float32)
         p = tf.multiply(p_8x4, y_image)
         p = tf.reduce_sum(p, axis=1)
     elif CU_WIDTH==16:
         x_image = tf.reshape(x, [-1, 16, 4, 1])
-        y_image = tf.reshape(y, [-1, 6])
+        y_image = tf.reshape(y, [-1, 3])
+        min_RDcost_image = tf.cast(min_RDcost, tf.float32)
+        RDcost_image = tf.reshape(RDcost, [-1, 3])
+        subtractor = tf.constant([1.0, 1.0, 1.0])
         p_16x4 = np.expand_dims(p_16x4, 0).repeat(BATCH_SIZE, axis=0).astype(np.float32)
         p = tf.multiply(p_16x4, y_image)
         p = tf.reduce_sum(p, axis=1)
     elif CU_WIDTH == 32:
         x_image = tf.reshape(x, [-1, 32, 4, 1])
-        y_image = tf.reshape(y, [-1, 6])
+        y_image = tf.reshape(y, [-1, 3])
+        min_RDcost_image = tf.cast(min_RDcost, tf.float32)
+        RDcost_image = tf.reshape(RDcost, [-1, 3])
+        subtractor = tf.constant([1.0, 1.0, 1.0])
         p_32x4 = np.expand_dims(p_32x4, 0).repeat(BATCH_SIZE, axis=0).astype(np.float32)
         p = tf.multiply(p_32x4, y_image)
         p = tf.reduce_sum(p, axis=1)
@@ -279,7 +313,8 @@ def net_8x4_16x4_32x4(x, y, qp, global_step, learning_rate_init, decay_rate, dec
     if CU_WIDTH == 8:
         y_one_hot = tf.one_hot(indices=y_predict, depth=2)  # 转换为one—hot vector
         loss_8x4_ce = -tf.reduce_sum(tf.multiply(np.power(p, adjust_scalar), tf.reduce_sum(tf.multiply(y_image, tf.log(y_probabilty + 1e-12)),axis=1))) / tf.reduce_sum(np.power(p, adjust_scalar))
-        total_loss_8x4 = loss_8x4_ce
+        loss_8x4_rd = tf.reduce_sum(tf.multiply(y_probabilty, tf.div(RDcost_image, min_RDcost_image) - subtractor)) / BATCH_SIZE
+        total_loss_8x4 = loss_8x4_ce + loss_8x4_rd
         accuracy_8x4 = tf.reduce_sum(tf.multiply(y_image, y_one_hot)) / tf.reduce_sum(y_image)
         learning_rate_current = tf.train.exponential_decay(learning_rate_init, global_step, decay_step, decay_rate,staircase=True)
         train_step = tf.train.AdamOptimizer(learning_rate_current).minimize(total_loss_8x4)
@@ -291,7 +326,8 @@ def net_8x4_16x4_32x4(x, y, qp, global_step, learning_rate_init, decay_rate, dec
     elif CU_WIDTH == 16:
         y_one_hot = tf.one_hot(indices=y_predict, depth=3)  # 转换为one—hot vector
         loss_16x4_ce = -tf.reduce_sum(tf.multiply(np.power(p, adjust_scalar), tf.reduce_sum(tf.multiply(y_image, tf.log(y_probabilty + 1e-12)),axis=1))) / tf.reduce_sum(np.power(p, adjust_scalar))
-        total_loss_16x4 = loss_16x4_ce
+        loss_16x4_rd = tf.reduce_sum(tf.multiply(y_probabilty, tf.div(RDcost_image, min_RDcost_image) - subtractor)) / BATCH_SIZE
+        total_loss_16x4 = loss_16x4_ce + loss_16x4_rd
         accuracy_16x4 = tf.reduce_sum(tf.multiply(y_image, y_one_hot)) / tf.reduce_sum(y_image)
         learning_rate_current = tf.train.exponential_decay(learning_rate_init, global_step, decay_step, decay_rate,staircase=True)
         train_step = tf.train.AdamOptimizer(learning_rate_current).minimize(total_loss_16x4)
@@ -303,7 +339,8 @@ def net_8x4_16x4_32x4(x, y, qp, global_step, learning_rate_init, decay_rate, dec
     elif CU_WIDTH == 32:
         y_one_hot = tf.one_hot(indices=y_predict, depth=3)  # 转换为one—hot vector
         loss_32x4_ce = -tf.reduce_sum(tf.multiply(np.power(p, adjust_scalar), tf.reduce_sum(tf.multiply(y_image, tf.log(y_probabilty + 1e-12)),axis=1))) / tf.reduce_sum(np.power(p, adjust_scalar))
-        total_loss_32x4 = loss_32x4_ce
+        loss_32x4_rd = tf.reduce_sum(tf.multiply(y_probabilty, tf.div(RDcost_image, min_RDcost_image) - subtractor)) / BATCH_SIZE
+        total_loss_32x4 = loss_32x4_ce + loss_32x4_rd
         accuracy_32x4 = tf.reduce_sum(tf.multiply(y_image, y_one_hot)) / tf.reduce_sum(y_image)
         learning_rate_current = tf.train.exponential_decay(learning_rate_init, global_step, decay_step, decay_rate,staircase=True)
         train_step = tf.train.AdamOptimizer(learning_rate_current).minimize(total_loss_32x4)

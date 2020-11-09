@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore")
 CU_WIDTH_LIST = [64,  32, 16, 32, 8, 32, 16, 8, 32, 16]
 CU_HEIGHT_LIST = [64, 32, 16, 16, 8, 8,  8,  4, 4,   4]
 
-LABEL_LENGTH_LIST = [2, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+LABEL_LENGTH_LIST = [2, 6, 6, 5, 3, 4, 4, 2, 3, 3]
 SAMPLE_LENGTH_LIST = [4105, 1033, 265, 521, 73, 265, 137, 41, 137, 73]
 IMAGES_LENGTH_LIST = [4096, 1024, 256, 512, 64, 256, 128, 32, 128, 64]
 

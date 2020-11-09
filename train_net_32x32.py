@@ -33,9 +33,9 @@ config.gpu_options.allow_growth = True
 index = 1
 CU_WIDTH, CU_HEIGHT, IMAGES_LENGTH, LABEL_LENGTH = gd.get_sample_details(index)
 
-images_batch_train, label_batch_train, qp_batch_train \
+images_batch_train, label_batch_train, qp_batch_train, min_RDcost_batch_train, RDcost_batch_train \
                                     = input_data.get_train_dataset(CU_WIDTH, CU_HEIGHT, LABEL_LENGTH, IMAGES_LENGTH)
-images_batch_valid, label_batch_valid, qp_batch_valid \
+images_batch_valid, label_batch_valid, qp_batch_valid, min_RDcost_batch_valid, RDcost_batch_valid \
                                     = input_data.get_valid_dataset(CU_WIDTH, CU_HEIGHT, LABEL_LENGTH)
 
 
@@ -44,10 +44,12 @@ images_batch_valid, label_batch_valid, qp_batch_valid \
 x = tf.placeholder("float", [None, CU_WIDTH, CU_HEIGHT, NUM_CHANNELS])
 y = tf.placeholder("float", [None, LABEL_LENGTH])
 qp = tf.placeholder("float", [None, 1])
+min_RDcost = tf.placeholder("float", [None, 1])
+RDcost = tf.placeholder("float", [None, LABEL_LENGTH])
 global_step = tf.placeholder("float")
 
 y_probabilty, y_predict, y_one_hot, total_loss_32x32, accuracy_32x32, learning_rate_current, train_step, opt_vars_all, \
-    opt_vars_res3 = net.net_32x32(x, y, qp, global_step, LEARNING_RATE_INIT, DECAY_RATE, DECAY_STEP)
+    opt_vars_res3 = net.net_32x32(x, y, qp, min_RDcost, RDcost, global_step, LEARNING_RATE_INIT, DECAY_RATE, DECAY_STEP)
 
 
 ######################     feed dict       ###########################
@@ -72,12 +74,12 @@ for i in range(ITER_TIMES):
     time_start_input = time.time()
 
     with tf.device('/gpu:0'):
-        images_input, lable_input, qp_input =  sess.run([images_batch_train, label_batch_train, qp_batch_train])
+        images_input, lable_input, qp_input, min_RDcost_input, RDcost_input =  sess.run([images_batch_train, label_batch_train, qp_batch_train, min_RDcost_batch_train, RDcost_batch_train])
 
     time_end_input = time.time()
 
     with tf.device('/gpu:0'):
-        _, learning_rate, loss, accuracy = sess.run([train_step, learning_rate_current, total_loss_32x32, accuracy_32x32],feed_dict={x: images_input, y: lable_input, qp: qp_input,global_step: feed_step})
+        _, learning_rate, loss, accuracy = sess.run([train_step, learning_rate_current, total_loss_32x32, accuracy_32x32],feed_dict={x: images_input, y: lable_input, qp: qp_input,min_RDcost: min_RDcost_input,RDcost: RDcost_input,global_step: feed_step})
 
     time_end_calcu = time.time()
 
@@ -93,10 +95,9 @@ for i in range(ITER_TIMES):
         loss_32x32_list = []
         j = 0
         for j in range(TIMES_PER_COUNT_ACCURACY):
-
-            images_input, lable_input, qp_input = sess.run([images_batch_valid, label_batch_valid, qp_batch_valid])
+            images_input, lable_input, qp_input, min_RDcost_input, RDcost_input = sess.run([images_batch_valid, label_batch_valid, qp_batch_valid, min_RDcost_batch_valid, RDcost_batch_valid])
             # 验证时不更新网络参数
-            loss, accuracy = sess.run([total_loss_32x32, accuracy_32x32],feed_dict={x: images_input, y: lable_input, qp: qp_input, global_step: feed_step})
+            loss, accuracy = sess.run([total_loss_32x32, accuracy_32x32],feed_dict={x: images_input, y: lable_input, qp: qp_input,min_RDcost: min_RDcost_input,RDcost: RDcost_input, global_step: feed_step})
             loss_32x32_list.append(loss)
             accuracy_32x32_list.append(accuracy)
 
