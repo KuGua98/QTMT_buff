@@ -50,7 +50,8 @@ for j in range(total_number):
         if rdcost == 0:
             choosed=0
             break
-    amount_list += 1
+    if choosed==1:
+        amount_list += 1
     if j%1000 == 0 :
         print("%d samples have completed, %d samples is valid"%(j+1, amount_list))
 
